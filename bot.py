@@ -175,7 +175,7 @@ def audio_opts(tmpdir):
     """FFmpeg shart emas — to'g'ridan-to'g'ri m4a/webm yuklab beradi"""
     return {
         'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
-        'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
+        'format': 'bestaudio[filesize<45M]/bestaudio',
         'quiet': True, 'no_warnings': True, 'noplaylist': True,
         'http_headers': HEADERS,
         # FFmpeg ishlatmaymiz — postprocessor yo'q
@@ -467,6 +467,14 @@ async def _send_audio(message, url, user_id):
 
             # eng katta faylni ol
             filepath = max([os.path.join(tmpdir, f) for f in files], key=os.path.getsize)
+            
+            # Fayl hajmini tekshirish
+            size = os.path.getsize(filepath)
+            if size > 48 * 1024 * 1024:
+                await status.edit_text("⚠️ Audio fayl juda katta (48MB+). Telegram chegarasidan oshadi.")
+                db_log(user_id, platform, url, 'audio', False)
+                return
+
             title = (info.get('title') or 'Audio')[:50]
             uploader = info.get('uploader','')
             duration = info.get('duration', 0)
@@ -477,6 +485,7 @@ async def _send_audio(message, url, user_id):
                 m, s2 = divmod(int(duration), 60)
                 caption += f"\n⏱ {m}:{s2:02d}"
 
+            await status.edit_text("📤 Yuborilmoqda...")
             with open(filepath, 'rb') as f:
                 await message.reply_audio(
                     audio=f, caption=caption, parse_mode=ParseMode.MARKDOWN,

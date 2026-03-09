@@ -1,0 +1,13 @@
+# Netscape HTTP Cookie File
+# Generated for yt-dlp
+
+.instagram.com	TRUE	/	TRUE	1807635581	ps_n	1
+.instagram.com	TRUE	/	TRUE	1807635465	datr	CPyuaSO-EKdvCzbuxF87ah9O
+.instagram.com	TRUE	/	TRUE	1780851795	ds_user_id	43799921133
+.instagram.com	TRUE	/	TRUE	1807635795	csrftoken	DI2JYWI4IOxrnEtRtsuSUGphjj4piDHm
+.instagram.com	TRUE	/	TRUE	1804611465	ig_did	1C0EB6E8-152E-4F9E-BDED-4838F2662FFB
+.instagram.com	TRUE	/	TRUE	1807635581	ps_l	1
+.instagram.com	TRUE	/	TRUE	1773680589	wd	1920x953
+.instagram.com	TRUE	/	TRUE	1807635465	mid	aa78CAALAAHjNQEdNLHwffp9rDwY
+.instagram.com	TRUE	/	TRUE	1804611725	sessionid	43799921133%3AB80UdZG6Ha0C74%3A27%3AAYjHVKKeN5hMB6Bq6Dkg7MISAkXlMVoOyJKgEZh3DA
+.instagram.com	TRUE	/	TRUE	0	rur	"RVA\05443799921133\0541804611794:01fe76baf0408c69a07a9ba276811196706d2a3618d94e4fead6914d04cf06c0ba229275"

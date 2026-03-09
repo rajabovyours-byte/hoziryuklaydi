@@ -19,6 +19,13 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "8536828322"))
 DB_PATH = "bot_data.db"
 URL_PATTERN = re.compile(r'https?://[^\s]+')
 
+COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.txt')
+
+def get_cookie_opts():
+    if os.path.exists(COOKIE_FILE):
+        return {'cookiefile': COOKIE_FILE}
+    return {}
+
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'en-US,en;q=0.9',
@@ -163,23 +170,25 @@ def bar(value, max_val, length=10):
     return '█' * filled + '░' * (length - filled)
 
 def video_opts(tmpdir):
-    return {
+    opts = {
         'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
         'format': 'bestvideo[ext=mp4][filesize<45M]+bestaudio[ext=m4a]/best[ext=mp4][filesize<45M]/best[filesize<45M]/best',
         'merge_output_format': 'mp4',
         'quiet': True, 'no_warnings': True, 'noplaylist': True,
         'http_headers': HEADERS, 'socket_timeout': 30,
     }
+    opts.update(get_cookie_opts())
+    return opts
 
 def audio_opts(tmpdir):
-    """FFmpeg shart emas — to'g'ridan-to'g'ri m4a/webm yuklab beradi"""
-    return {
+    opts = {
         'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
         'format': 'bestaudio[filesize<45M]/bestaudio',
         'quiet': True, 'no_warnings': True, 'noplaylist': True,
         'http_headers': HEADERS,
-        # FFmpeg ishlatmaymiz — postprocessor yo'q
     }
+    opts.update(get_cookie_opts())
+    return opts
 
 def _download(url, opts):
     with yt_dlp.YoutubeDL(opts) as ydl:

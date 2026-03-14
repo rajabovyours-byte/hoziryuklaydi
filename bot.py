@@ -1,6 +1,6 @@
 import os, re, asyncio, tempfile, logging, sqlite3, hashlib
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import (Application, CommandHandler, MessageHandler,
                            CallbackQueryHandler, filters, ContextTypes)
 from telegram.constants import ParseMode
@@ -271,16 +271,29 @@ def _info(url):
 def _search(q,opts):
     with yt_dlp.YoutubeDL(opts) as ydl: return ydl.extract_info(q,download=False)
 
-def main_menu_kb(lang,is_admin=False):
-    kb=[[InlineKeyboardButton(t(lang,'btn_download'),callback_data="menu_dl"),InlineKeyboardButton(t(lang,'btn_music'),callback_data="menu_music")],[InlineKeyboardButton(t(lang,'btn_info'),callback_data="menu_info"),InlineKeyboardButton(t(lang,'btn_thumb'),callback_data="menu_thumb")],[InlineKeyboardButton(t(lang,'btn_subs'),callback_data="menu_subs"),InlineKeyboardButton(t(lang,'btn_quality'),callback_data="menu_quality")],[InlineKeyboardButton(t(lang,'btn_history'),callback_data="menu_history"),InlineKeyboardButton(t(lang,'btn_favs'),callback_data="menu_favs")],[InlineKeyboardButton(t(lang,'btn_mystats'),callback_data="menu_mystats"),InlineKeyboardButton(t(lang,'btn_lang'),callback_data="menu_lang")],[InlineKeyboardButton(t(lang,'btn_help'),callback_data="menu_help")]]
-    if is_admin: kb.append([InlineKeyboardButton("🔐 Admin Panel",callback_data="admin_main")])
-    return InlineKeyboardMarkup(kb)
+def main_menu_kb(lang, is_admin=False):
+    """Reply Keyboard — pastda doim ko'rinib turadi"""
+    rows = [
+        [KeyboardButton(t(lang,'btn_download')),   KeyboardButton(t(lang,'btn_music'))],
+        [KeyboardButton(t(lang,'btn_info')),        KeyboardButton(t(lang,'btn_thumb'))],
+        [KeyboardButton(t(lang,'btn_subs')),        KeyboardButton(t(lang,'btn_quality'))],
+        [KeyboardButton(t(lang,'btn_history')),     KeyboardButton(t(lang,'btn_favs'))],
+        [KeyboardButton(t(lang,'btn_mystats')),     KeyboardButton(t(lang,'btn_lang'))],
+        [KeyboardButton(t(lang,'btn_help'))],
+    ]
+    if is_admin:
+        rows.append([KeyboardButton("🔐 Admin Panel")])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True, input_field_placeholder="Havola yoki qo'shiq nomi...")
 
 async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
     db_reg(update.effective_user)
     uid=update.effective_user.id;lang=get_user_lang(uid)
     name=update.effective_user.first_name or "👤"
-    await update.message.reply_text(t(lang,'welcome',name=name),parse_mode=ParseMode.MARKDOWN,reply_markup=main_menu_kb(lang,uid==ADMIN_ID))
+    await update.message.reply_text(
+        t(lang,'welcome',name=name),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=main_menu_kb(lang, uid==ADMIN_ID)
+    )
 
 async def menu_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     q=update.callback_query;await q.answer()
@@ -307,7 +320,7 @@ async def menu_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     elif action=="menu_quality":
         quality=get_user_quality(uid)
         txt={'uz':f"🎬 *Sifat tanlang*\n\nHozirgi: `{quality}`\n\nKeyingi barcha yuklamalar shu sifatda boladi.",'ru':f"🎬 *Выберите качество*\n\nТекущее: `{quality}`",'en':f"🎬 *Select Quality*\n\nCurrent: `{quality}`"}
-        kb2=InlineKeyboardMarkup([[InlineKeyboardButton("360p",callback_data="setq_360p"),InlineKeyboardButton("720p HD ⭐",callback_data="setq_720p"),InlineKeyboardButton("1080p FHD",callback_data="setq_1080p")],[InlineKeyboardButton("🏆 Best",callback_data="setq_best")],[InlineKeyboardButton(t(lang,'btn_back'),callback_data="menu_back")]])
+        kb2=InlineKeyboardMarkup([[InlineKeyboardButton("360p",callback_data="setq_360p"),InlineKeyboardButton("720p HD ⭐",callback_data="setq_720p"),InlineKeyboardButton("1080p FHD",callback_data="setq_1080p")],[InlineKeyboardButton("🏆 Best",callback_data="setq_best")]])
         await q.edit_message_text(txt.get(lang,txt['uz']),parse_mode=ParseMode.MARKDOWN,reply_markup=kb2)
     elif action=="menu_history":
         await _show_history_edit(q,uid,lang)
@@ -316,20 +329,27 @@ async def menu_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     elif action=="menu_mystats":
         await _show_mystats_edit(q,uid,lang)
     elif action=="menu_lang":
-        kb2=InlineKeyboardMarkup([[InlineKeyboardButton("🇺🇿 O'zbek",callback_data="lang_uz"),InlineKeyboardButton("🇷🇺 Русский",callback_data="lang_ru"),InlineKeyboardButton("🇬🇧 English",callback_data="lang_en")],[InlineKeyboardButton(t(lang,'btn_back'),callback_data="menu_back")]])
+        kb2=InlineKeyboardMarkup([[InlineKeyboardButton("🇺🇿 O'zbek",callback_data="lang_uz"),InlineKeyboardButton("🇷🇺 Русский",callback_data="lang_ru"),InlineKeyboardButton("🇬🇧 English",callback_data="lang_en")]])
         await q.edit_message_text(t(lang,'choose_lang'),parse_mode=ParseMode.MARKDOWN,reply_markup=kb2)
     elif action=="menu_help":
         await q.edit_message_text(t(lang,'help_text'),parse_mode=ParseMode.MARKDOWN,reply_markup=back)
     elif action=="menu_back":
-        name=q.from_user.first_name or "👤"
-        await q.edit_message_text(t(lang,'welcome',name=name),parse_mode=ParseMode.MARKDOWN,reply_markup=main_menu_kb(lang,uid==ADMIN_ID))
+        # Inline xabarni yopamiz, reply keyboard allaqachon ko'rinib turibdi
+        await q.edit_message_text("✅", parse_mode=ParseMode.MARKDOWN)
 
 async def lang_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     q=update.callback_query;await q.answer()
     uid=q.from_user.id;lang=q.data[5:]
     set_user_lang(uid,lang)
     name=q.from_user.first_name or "👤"
-    await q.edit_message_text(t(lang,'lang_set')+"\n\n"+t(lang,'welcome',name=name),parse_mode=ParseMode.MARKDOWN,reply_markup=main_menu_kb(lang,uid==ADMIN_ID))
+    # Inline xabarni yopamiz
+    await q.edit_message_text(t(lang,'lang_set'), parse_mode=ParseMode.MARKDOWN)
+    # Reply keyboard bilan yangi xabar
+    await q.message.reply_text(
+        t(lang,'welcome',name=name),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=main_menu_kb(lang, uid==ADMIN_ID)
+    )
 
 async def quality_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     q=update.callback_query;await q.answer()
@@ -475,6 +495,13 @@ async def download_video(update:Update,context:ContextTypes.DEFAULT_TYPE):
     db_reg(update.effective_user);uid=update.effective_user.id;lang=get_user_lang(uid)
     if uid==ADMIN_ID and context.user_data.get('broadcast_mode'):
         await broadcast_handler(update,context);return
+
+    # Reply keyboard tugmasi bosilganini tekshirish
+    msg_text = update.message.text.strip()
+    if msg_text in BUTTON_TEXTS:
+        btn_lang, btn_key = BUTTON_TEXTS[msg_text]
+        await _handle_menu_button(update, context, uid, lang, btn_key)
+        return
     text=update.message.text.strip()
     next_action=context.user_data.pop('next_action',None)
     quality=get_user_quality(uid)

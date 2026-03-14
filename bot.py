@@ -497,7 +497,7 @@ async def download_video(update:Update,context:ContextTypes.DEFAULT_TYPE):
             files=[f for f in os.listdir(tmpdir) if not f.endswith(('.part','.ytdl'))]
             if not files: raise Exception("Fayl topilmadi")
             filepath=os.path.join(tmpdir,max(files,key=lambda f:os.path.getsize(os.path.join(tmpdir,f))))
-            if os.path.getsize(filepath)>50*1024*1024:
+            if os.path.getsize(filepath) > get_size_limit():
                 db_log(uid,platform,url,'?','video',False);await status.edit_text(t(lang,'too_large'));return
             title=(info.get('title') or 'Video')[:50];uploader=info.get('uploader','')
             duration=info.get('duration',0);views=info.get('view_count',0)
@@ -514,14 +514,40 @@ async def download_video(update:Update,context:ContextTypes.DEFAULT_TYPE):
             await status.delete()
             db_log(uid,platform,url,title,'video',True)
     except Exception as e:
-        db_log(uid,platform,url,'?','video',False)
-        err=str(e).lower()
-        if 'private' in err: msg=t(lang,'private')
-        elif 'not available' in err: msg=t(lang,'not_available')
-        elif 'sign in' in err or 'login' in err: msg=t(lang,'login_required')
-        elif 'copyright' in err: msg=t(lang,'copyright')
-        else: msg=t(lang,'error',e=str(e)[:200])
-        await status.edit_text(msg,parse_mode=ParseMode.MARKDOWN)
+        err = str(e).lower()
+        # Pinterest: video yo'q bo'lsa rasm yuboramiz
+        if 'pinterest' in platform.lower() and ('no video' in err or 'no formats' in err or 'format' in err):
+            try:
+                loop = asyncio.get_event_loop()
+                info = await loop.run_in_executor(None, lambda: _get_info(url))
+                thumb = info.get('thumbnail','')
+                title = (info.get('title') or 'Pinterest')[:50]
+                if thumb:
+                    await status.delete()
+                    ukey = url_to_key(url)
+                    kb = InlineKeyboardMarkup([[
+                        InlineKeyboardButton(t(lang,'btn_get_thumb'), callback_data=f"thmb_{ukey}"),
+                        InlineKeyboardButton(t(lang,'btn_add_fav'),   callback_data=f"fav_{ukey}_{title[:15]}")
+                    ]])
+                    await update.message.reply_photo(
+                        photo=thumb,
+                        caption=f"🖼 *{title}*\n📌 Pinterest\n\n_(Bu pin rasm, video emas)_",
+                        parse_mode=ParseMode.MARKDOWN, reply_markup=kb
+                    )
+                    db_log(uid, platform, url, title, 'video', True)
+                    return
+            except Exception:
+                pass
+        db_log(uid, platform, url, '?', 'video', False)
+        if 'private' in err: msg = t(lang,'private')
+        elif 'not available' in err: msg = t(lang,'not_available')
+        elif 'sign in' in err or 'login' in err: msg = t(lang,'login_required')
+        elif 'copyright' in err: msg = t(lang,'copyright')
+        elif 'no video formats' in err or 'no formats' in err:
+            msg = ("❌ Bu sahifada yuklab olinadigan video/rasm topilmadi.\n\n"
+                   "💡 Manzilni to'g'ridan-to'g'ri ochib, video yoki rasmni saqlang.")
+        else: msg = t(lang,'error', e=str(e)[:200])
+        await status.edit_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 async def dlv_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     q=update.callback_query;lang=get_user_lang(q.from_user.id);await q.answer()
@@ -562,7 +588,7 @@ async def _send_audio(message,url,uid,lang):
             files=os.listdir(tmpdir)
             if not files: raise Exception("Audio topilmadi")
             filepath=max([os.path.join(tmpdir,f) for f in files],key=os.path.getsize)
-            if os.path.getsize(filepath)>48*1024*1024:
+            if os.path.getsize(filepath) > get_audio_size_limit():
                 await status.edit_text(t(lang,'audio_too_large'));return
             title=(info.get('title') or 'Audio')[:50];uploader=info.get('uploader','');duration=info.get('duration',0)
             caption=f"🎵 *{title}*"
@@ -775,7 +801,33 @@ async def cancel_command(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
 def main():
     init_db()
-    app=Application.builder().token(BOT_TOKEN).build()
+
+    # Local Bot API server (2GB limit!)
+    LOCAL_API_URL  = os.environ.get("LOCAL_API_URL", "")   # masalan: http://telegram-bot-api:8081
+    USE_LOCAL_API  = bool(LOCAL_API_URL)
+
+    builder = Application.builder().token(BOT_TOKEN)
+
+    if USE_LOCAL_API:
+        base_url      = LOCAL_API_URL.rstrip("/") + "/bot"
+        base_file_url = LOCAL_API_URL.rstrip("/") + "/file/bot"
+        builder = (
+            builder
+            .base_url(base_url)
+            .base_file_url(base_file_url)
+            .local_mode(True)
+        )
+        logger.info(f"🔗 Local Bot API ishlatilmoqda: {LOCAL_API_URL}")
+        # Local rejimda video/audio limitini 2GB ga oshiramiz
+        import telegram.constants as tg_const
+        try:
+            tg_const.FileSizeLimit.FILESIZE_UPLOAD = 2_000_000_000
+        except Exception:
+            pass
+    else:
+        logger.info("☁️ Standart Telegram API ishlatilmoqda (50MB limit)")
+
+    app = builder.build()
     app.add_handler(CommandHandler("start",start))
     app.add_handler(CommandHandler("cancel",cancel_command))
     app.add_handler(CallbackQueryHandler(menu_callback,pattern=r'^menu_'))

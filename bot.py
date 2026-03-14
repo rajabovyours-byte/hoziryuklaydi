@@ -271,6 +271,15 @@ def _info(url):
 def _search(q,opts):
     with yt_dlp.YoutubeDL(opts) as ydl: return ydl.extract_info(q,download=False)
 
+def _get_info(url):
+    return _info(url)
+
+def get_size_limit():
+    return 1_900_000_000 if os.environ.get("LOCAL_API_URL") else 49*1024*1024
+
+def get_audio_size_limit():
+    return 1_900_000_000 if os.environ.get("LOCAL_API_URL") else 47*1024*1024
+
 def main_menu_kb(lang, is_admin=False):
     """Reply Keyboard — pastda doim ko'rinib turadi"""
     rows = [

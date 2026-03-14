@@ -496,11 +496,36 @@ async def download_video(update:Update,context:ContextTypes.DEFAULT_TYPE):
     if uid==ADMIN_ID and context.user_data.get('broadcast_mode'):
         await broadcast_handler(update,context);return
 
-    # Reply keyboard tugmasi bosilganini tekshirish
     msg_text = update.message.text.strip()
-    if msg_text in BUTTON_TEXTS:
-        btn_lang, btn_key = BUTTON_TEXTS[msg_text]
-        await _handle_menu_button(update, context, uid, lang, btn_key)
+
+    # Reply keyboard tugmalarini tekshirish — barcha 3 til uchun
+    all_btns = {
+        # UZ
+        t('uz','btn_download'): 'btn_download', t('uz','btn_music'): 'btn_music',
+        t('uz','btn_info'): 'btn_info',         t('uz','btn_thumb'): 'btn_thumb',
+        t('uz','btn_subs'): 'btn_subs',         t('uz','btn_quality'): 'btn_quality',
+        t('uz','btn_history'): 'btn_history',   t('uz','btn_favs'): 'btn_favs',
+        t('uz','btn_mystats'): 'btn_mystats',   t('uz','btn_lang'): 'btn_lang',
+        t('uz','btn_help'): 'btn_help',
+        # RU
+        t('ru','btn_download'): 'btn_download', t('ru','btn_music'): 'btn_music',
+        t('ru','btn_info'): 'btn_info',         t('ru','btn_thumb'): 'btn_thumb',
+        t('ru','btn_subs'): 'btn_subs',         t('ru','btn_quality'): 'btn_quality',
+        t('ru','btn_history'): 'btn_history',   t('ru','btn_favs'): 'btn_favs',
+        t('ru','btn_mystats'): 'btn_mystats',   t('ru','btn_lang'): 'btn_lang',
+        t('ru','btn_help'): 'btn_help',
+        # EN
+        t('en','btn_download'): 'btn_download', t('en','btn_music'): 'btn_music',
+        t('en','btn_info'): 'btn_info',         t('en','btn_thumb'): 'btn_thumb',
+        t('en','btn_subs'): 'btn_subs',         t('en','btn_quality'): 'btn_quality',
+        t('en','btn_history'): 'btn_history',   t('en','btn_favs'): 'btn_favs',
+        t('en','btn_mystats'): 'btn_mystats',   t('en','btn_lang'): 'btn_lang',
+        t('en','btn_help'): 'btn_help',
+        # Admin
+        '🔐 Admin Panel': 'admin_panel',
+    }
+    if msg_text in all_btns:
+        await _handle_menu_button(update, context, uid, lang, all_btns[msg_text])
         return
     text=update.message.text.strip()
     next_action=context.user_data.pop('next_action',None)
